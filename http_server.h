@@ -6,8 +6,8 @@
 #include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
-#include "idatabase.h"
-#include "ihttp_client.h"
+#include "database_interface.h"
+#include "http_client_interface.h"
 #include "url_parser.h"
 
 using boost::asio::ip::tcp;
@@ -15,7 +15,7 @@ using json = nlohmann::json;
 
 class HttpSession : public std::enable_shared_from_this<HttpSession> {
    public:
-    HttpSession(tcp::socket socket, const std::shared_ptr<UrlParser>& urlParser, const std::shared_ptr<IDatabase>& db)
+    HttpSession(tcp::socket socket, const std::shared_ptr<UrlParser>& urlParser, const std::shared_ptr<DatabaseInterface>& db)
         : socket_(std::move(socket)), url_parser(urlParser), db(db) {}
 
     void start() { read_request(); }
@@ -46,10 +46,12 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
                         }
                         if (header.find("Content-Type:") == 0) {
                             content_type_ = header.substr(13);
-                            while (!content_type_.empty() && isspace(content_type_.front())) {
+                            while (!content_type_.empty() &&
+                                   isspace(content_type_.front())) {
                                 content_type_.erase(0, 1);
                             }
-                            while (!content_type_.empty() && isspace(content_type_.back())) {
+                            while (!content_type_.empty() &&
+                                   isspace(content_type_.back())) {
                                 content_type_.pop_back();
                             }
                         }
@@ -67,7 +69,10 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
     void read_body() {
         auto self(shared_from_this());
         std::size_t bytes_already_in_buffer = buffer_.size();
-        std::size_t bytes_to_read = (content_length_ > bytes_already_in_buffer) ? (content_length_ - bytes_already_in_buffer) : 0;
+        std::size_t bytes_to_read =
+            (content_length_ > bytes_already_in_buffer)
+                ? (content_length_ - bytes_already_in_buffer)
+                : 0;
 
         if (bytes_to_read > 0) {
             boost::asio::async_read(
@@ -75,7 +80,8 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
                 [this, self](boost::system::error_code ec, std::size_t) {
                     if (!ec) {
                         std::istream body_stream(&buffer_);
-                        body_.assign(std::istreambuf_iterator<char>(body_stream), {});
+                        body_.assign(
+                            std::istreambuf_iterator<char>(body_stream), {});
                         handle_request();
                     }
                 });
@@ -97,7 +103,7 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
             if (std::regex_match(uri_, matches, get_results_pattern)) {
                 std::string id = matches[1].str();
                 json response_json = {{"request_id", id}};
-                std::vector<Url> urls = db->GetUrls(std::stoi(id));
+                std::vector<Url> urls = db->find(std::stoi(id));
                 for (const auto& url : urls) {
                     response_json["urls"].push_back(
                         {{"url", url.url},
@@ -115,13 +121,16 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
                 if (uri_ == "/check_urls") {
                     try {
                         json parsed = json::parse(body_);
-                        int requestId = db->GetRequestId(body_);
+                        int requestId = db->getRequestId(body_);
                         std::vector<std::string> urls;
                         for (const auto& url_obj : parsed["urls"]) {
                             urls.push_back(url_obj["url"].get<std::string>());
                         }
-                        url_parser->AddUrls(requestId, urls);
-                        response_body = R"({"status": "OK", "request_id": )" + std::to_string(requestId) + R"(, "count_urls": )" + std::to_string(urls.size()) + "}";
+                        url_parser->addUrls(requestId, urls);
+                        response_body = R"({"status": "OK", "request_id": )" +
+                                        std::to_string(requestId) +
+                                        R"(, "count_urls": )" +
+                                        std::to_string(urls.size()) + "}";
                     } catch (const std::exception& e) {
                         status = "400 Bad Request";
                         response_body = R"({"error": "Bad Request"})";
@@ -144,12 +153,17 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
             content_type = "application/json; charset=UTF-8";
         }
 
-        std::string response = "HTTP/1.1 " + status + "\r\n"
-            "Content-Type: " + content_type + "\r\n"
-            "Content-Length: " + std::to_string(response_body.size()) + "\r\n"
-            "Connection: close\r\n"
-            "\r\n" +
-            response_body;
+        std::string response = "HTTP/1.1 " + status +
+                               "\r\n"
+                               "Content-Type: " +
+                               content_type +
+                               "\r\n"
+                               "Content-Length: " +
+                               std::to_string(response_body.size()) +
+                               "\r\n"
+                               "Connection: close\r\n"
+                               "\r\n" +
+                               response_body;
 
         auto self(shared_from_this());
         boost::asio::async_write(
@@ -164,20 +178,24 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
     std::string method_, uri_, version_, body_, content_type_;
     size_t content_length_ = 0;
     std::shared_ptr<UrlParser> url_parser;
-    std::shared_ptr<IDatabase> db;
+    std::shared_ptr<DatabaseInterface> db;
 };
 
 class HttpServer {
    public:
-    HttpServer(
-        boost::asio::io_context& io_context, unsigned short port,
-        size_t maxThreads, const std::shared_ptr<IDatabase>& database,
-        const size_t timeout,
-        std::function<std::unique_ptr<IHttpClient>(const std::string&, size_t)> httpClientFactory)
-        : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)), max_threads(maxThreads), timeout(timeout) {
+    HttpServer(boost::asio::io_context& io_context, unsigned short port,
+               size_t maxThreads,
+               const std::shared_ptr<DatabaseInterface>& database,
+               const size_t timeout,
+               std::function<std::unique_ptr<HttpClientInterface>(
+                   const std::string&, size_t)>
+                   httpClientFactory)
+        : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)),
+          max_threads(maxThreads),
+          timeout(timeout) {
 
         db = database;
-        url_parser = std::make_shared<UrlParser>(max_threads, timeout, db,  httpClientFactory);
+        url_parser = std::make_shared<UrlParser>(max_threads, timeout, db, httpClientFactory);
         accept();
     }
 
@@ -194,6 +212,6 @@ class HttpServer {
     tcp::acceptor acceptor_;
     size_t max_threads;
     std::shared_ptr<UrlParser> url_parser;
-    std::shared_ptr<IDatabase> db;
+    std::shared_ptr<DatabaseInterface> db;
     size_t timeout;
 };

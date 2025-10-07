@@ -12,6 +12,9 @@ pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 add_executable(monitoring
     main.cpp
+    curl.cpp
+    url_parser.cpp
+    sqlite_db.cpp
 )
 
 target_link_libraries(monitoring PRIVATE

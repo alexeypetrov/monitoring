@@ -4,15 +4,16 @@
 #include <regex>
 #include <string>
 #include "curl.h"
-#include "db.h"
 #include "http_server.h"
+#include "sqlite_db.h"
 
 namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;
 
 int main(const int argc, char* argv[]) {
     boost::program_options::options_description desc("Options");
-    desc.add_options()("help,h", "show help")
+    desc.add_options()
+    ("help,h", "show help")
     ("max-threads,m", boost::program_options::value<std::size_t>()->default_value(1), "max threads")
     ("database-path,d", boost::program_options::value<std::string>()->default_value("monitoring.db"), "database path")
     ("timeout,t", boost::program_options::value<std::size_t>()->default_value(10), "timeout in seconds")
@@ -34,8 +35,8 @@ int main(const int argc, char* argv[]) {
 
     try {
         boost::asio::io_context ioContext;
-        auto database = std::make_shared<Db>(databasePath);
-        auto httpClientFactory = [](const std::string& url, size_t timeout) -> std::unique_ptr<IHttpClient> {
+        auto database = std::make_shared<SqliteDb>(databasePath);
+        auto httpClientFactory = [](const std::string& url, size_t timeout) -> std::unique_ptr<HttpClientInterface> {
             return std::make_unique<Curl>(url, timeout);
         };
         HttpServer server(ioContext, port, maxThreads, database, timeout, httpClientFactory);
