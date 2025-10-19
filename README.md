@@ -66,8 +66,8 @@ cmake --build .
 # Запуск с параметрами по умолчанию
 ./monitoring
 
-# Запуск на порту 3000 с 4 потоками и таймаутом 5 секунд
-./monitoring --port 3000 --max-threads 4 --timeout 5
+# Запуск на порту 8080 с 4 потоками и таймаутом 5 секунд
+./monitoring --port 8080 --max-threads 4 --timeout 5
 
 # Запуск с базой данных
 ./monitoring --database-path data.db --port 8080
@@ -112,19 +112,19 @@ cmake --build .
             "url": "http://localhost/1",
             "http_status": 200,
             "response_time": 245,
-            "created_at": "2024-01-15 10:30:45"
+            "created_at": "2025-10-15 10:30:45"
         },
         {
             "url": "http://localhost/2",
             "http_status": 200,
             "response_time": 312,
-            "created_at": "2024-01-15 10:30:46"
+            "created_at": "2025-10-15 10:30:46"
         },
         {
             "url": "http://localhost/3",
             "http_status": 200,
             "response_time": 189,
-            "created_at": "2024-01-15 10:30:45"
+            "created_at": "2025-10-15 10:30:47"
         }
     ]
 }
@@ -191,7 +191,7 @@ curl http://localhost:8080/get_results/10
 ./monitoring --port 8080 --max-threads 4 --timeout 5
 
 # 2. В другом терминале - отправка URL-ов
-curl -s -X POST http://localhost:8080/check_urls \
+curl -X POST http://localhost:8080/check_urls \
   -H "Content-Type: application/json" \
   -d '{
     "urls": [
@@ -211,12 +211,12 @@ curl http://localhost:8080/get_results/10
 Приложение автоматически создаёт SQLite базу данных со следующей структурой:
 
 ### Таблица `requests`
-- `id` - PRIMARY KEY, автоинкремент
+- `id` - PRIMARY KEY
 - `content` - JSON содержимое запроса
 - `created_at` - время создания запроса
 
 ### Таблица `urls`
-- `id` - PRIMARY KEY, автоинкремент
+- `id` - PRIMARY KEY
 - `request_id` - ID связанного запроса
 - `url` - проверяемый URL
 - `http_status` - HTTP статус код (0 для timeout)

@@ -73,6 +73,28 @@ std::vector<Url> SqliteDb::find(const int requestId) {
     return urls;
 }
 
+bool SqliteDb::requestIdExists(const int requestId) {
+    const char* select_sql = R"(
+        SELECT COUNT(*) FROM requests WHERE id = ?;
+    )";
+
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(db.get(), select_sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, requestId);
+
+    bool isExists = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        isExists = sqlite3_column_int(stmt, 0) > 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return isExists;
+}
+
 void SqliteDb::initDb() {
     sqlite3* temp_db = nullptr;
     int rc = sqlite3_open(db_path.c_str(), &temp_db);

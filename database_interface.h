@@ -12,4 +12,5 @@ class DatabaseInterface {
     [[nodiscard]] virtual size_t getRequestId(const std::string& content) const = 0;
     virtual bool insert(const Url& url) = 0;
     virtual std::vector<Url> find(const int requestId) = 0;
+    virtual bool requestIdExists(const int requestId) = 0;
 };

@@ -9,6 +9,7 @@
 #include "database_interface.h"
 #include "http_client_interface.h"
 #include "url_parser.h"
+#include "utils.h"
 
 using boost::asio::ip::tcp;
 using json = nlohmann::json;
@@ -46,14 +47,7 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
                         }
                         if (header.find("Content-Type:") == 0) {
                             content_type_ = header.substr(13);
-                            while (!content_type_.empty() &&
-                                   isspace(content_type_.front())) {
-                                content_type_.erase(0, 1);
-                            }
-                            while (!content_type_.empty() &&
-                                   isspace(content_type_.back())) {
-                                content_type_.pop_back();
-                            }
+                            trim(content_type_);
                         }
                     }
 
@@ -80,8 +74,7 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
                 [this, self](boost::system::error_code ec, std::size_t) {
                     if (!ec) {
                         std::istream body_stream(&buffer_);
-                        body_.assign(
-                            std::istreambuf_iterator<char>(body_stream), {});
+                        body_.assign(std::istreambuf_iterator<char>(body_stream), {});
                         handle_request();
                     }
                 });
@@ -102,16 +95,23 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
 
             if (std::regex_match(uri_, matches, get_results_pattern)) {
                 std::string id = matches[1].str();
-                json response_json = {{"request_id", id}};
-                std::vector<Url> urls = db->find(std::stoi(id));
-                for (const auto& url : urls) {
-                    response_json["urls"].push_back(
-                        {{"url", url.url},
-                         {"http_status", url.http_status},
-                         {"response_time", url.response_time},
-                         {"created_at", url.created_at}});
+                int request_id = std::stoi(id);
+
+                if (!db->requestIdExists(request_id)) {
+                    status = "404 Not Found";
+                    response_body = R"({"error": "Request ID not found"})";
+                } else {
+                    json response_json = {{"request_id", id}};
+                    std::vector<Url> urls = db->find(request_id);
+                    for (const auto& url : urls) {
+                        response_json["urls"].push_back(
+                            {{"url", url.url},
+                             {"http_status", url.http_status},
+                             {"response_time", url.response_time},
+                             {"created_at", url.created_at}});
+                    }
+                    response_body = response_json.dump();
                 }
-                response_body = response_json.dump();
             } else {
                 status = "404 Not Found";
                 response_body = R"({"error": "Not Found"})";

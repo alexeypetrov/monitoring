@@ -19,6 +19,8 @@ class SqliteDb : public DatabaseInterface {
 
     std::vector<Url> find(const int requestId) override;
 
+    bool requestIdExists(const int requestId) override;
+
    private:
     void initDb();
     void createTable();
