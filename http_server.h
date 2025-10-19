@@ -90,7 +90,7 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
         std::string status = "200 OK";
 
         if (method_ == "GET") {
-            std::regex get_results_pattern("^/get_results/(.+)$");
+            std::regex get_results_pattern("^/get_results/(\\d{1,9})$");
             std::smatch matches;
 
             if (std::regex_match(uri_, matches, get_results_pattern)) {
@@ -147,11 +147,7 @@ class HttpSession : public std::enable_shared_from_this<HttpSession> {
             status = "405 Method Not Allowed";
             response_body = R"({"error": "Method Not Allowed"})";
         }
-        std::string content_type = "text/html; charset=UTF-8";
-        std::regex get_results_pattern("^/get_results/(.+)$");
-        if (method_ == "GET" && std::regex_match(uri_, get_results_pattern)) {
-            content_type = "application/json; charset=UTF-8";
-        }
+        std::string content_type = "application/json; charset=UTF-8";
 
         std::string response = "HTTP/1.1 " + status +
                                "\r\n"
