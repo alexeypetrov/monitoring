@@ -33,7 +33,7 @@ HTTP-сервер для мониторинга доступности URL-ад�
 
 ```bash
 sudo apt update
-sudo apt install cmake build-essential libboost-all-dev libcurl4-openssl-dev sqlite3 libsqlite3-dev nlohmann-json3-dev
+sudo apt install cmake build-essential libboost-all-dev libcurl4-openssl-dev sqlite3 libsqlite3-dev nlohmann-json3-dev libgtest-dev
 ```
 
 ### Сборка проекта

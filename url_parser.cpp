@@ -10,8 +10,19 @@ UrlParser::UrlParser(const size_t numThreads, size_t timeout,
       db(dB),
       http_client_factory(std::move(httpClientFactory)) {
     for (size_t i = 0; i < m_num_threads; i++) {
-        std::thread t(&UrlParser::worker, this);
-        t.detach();
+        threads.emplace_back(&UrlParser::worker, this);
+    }
+}
+UrlParser::~UrlParser() {
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        m_stop = true;
+    }
+    cv.notify_all();
+    for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
     }
 }
 void UrlParser::addUrls(const int requestId,
@@ -27,9 +38,12 @@ void UrlParser::worker() {
         Url url;
         {
             std::unique_lock lock(mtx);
-            cv.wait(lock, [this] { return !m_queue.empty(); });
-            if (m_queue.empty()) {
+            cv.wait(lock, [this] { return !m_queue.empty() || m_stop; });
+            if (m_stop && m_queue.empty()) {
                 break;
+            }
+            if (m_queue.empty()) {
+                continue;
             }
             url = m_queue.front();
             m_queue.pop();

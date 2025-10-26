@@ -19,6 +19,7 @@ class UrlParser {
                        std::function<std::unique_ptr<HttpClientInterface>(
                            const std::string&, size_t)>
                            httpClientFactory);
+    ~UrlParser();
     void addUrls(const int requestId, const std::vector<std::string>& url);
 
    private:
@@ -28,6 +29,8 @@ class UrlParser {
     std::queue<Url> m_queue;
     std::mutex mtx;
     std::condition_variable cv;
+    bool m_stop = false;
     std::shared_ptr<DatabaseInterface> db;
     std::function<std::unique_ptr<HttpClientInterface>(const std::string&, size_t)> http_client_factory;
+    std::vector<std::thread> threads;
 };
