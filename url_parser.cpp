@@ -31,7 +31,7 @@ void UrlParser::addUrls(const int requestId,
     for (size_t i = 0; i < url.size(); i++) {
         m_queue.push(Url{requestId, url.at(i)});
     }
-    cv.notify_one();
+    cv.notify_all();
 }
 void UrlParser::worker() {
     while (true) {
